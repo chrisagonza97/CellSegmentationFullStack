@@ -66,10 +66,10 @@ The React app will open automatically in your browser at: [http://localhost:3000
 ## 📁 Project Structure
 
 ```
-your-repo-name/
+CellSegmentationFullStack/
 ├── backend/         # Django project
 │   ├── api/         # Django app
-│   └── manage.py
+│   └── backend/
 ├── frontend/        # React frontend
 │   ├── public/
 │   └── src/
