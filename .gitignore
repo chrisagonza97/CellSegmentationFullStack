@@ -3,5 +3,5 @@ backend/uploads/*.png
 backend/uploads/*.jpg
 backend/api/__pycache__/
 backend/backend/__pycache__/
-backend/api/seg_models/*.pkl
+#backend/api/seg_models/*.pkl
 .env

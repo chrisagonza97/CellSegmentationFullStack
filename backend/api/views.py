@@ -5,7 +5,7 @@ from rest_framework import status
 import os
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from .segmentations import predict_single_image_unet, return_negative_img
+from .segmentations import predict_single_image_unet, return_negative_img, predict_single_image_transunet
 from django.http import HttpResponse
 from io import BytesIO
 import traceback
@@ -19,10 +19,8 @@ def hello_world(request):
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def segment_image(request):
-    if 'image' not in request.FILES:
-        return Response({'error': 'No image file provided.'}, status=status.HTTP_400_BAD_REQUEST)
-    if 'mask' not in request.FILES:
-        return Response({'error': 'No ground truth mask provided.'}, status=status.HTTP_400_BAD_REQUEST)
+    if 'image' not in request.FILES or 'mask' not in request.FILES:
+        return Response({'error': 'Image and mask files are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     image = request.FILES['image']
     mask = request.FILES['mask']
@@ -34,18 +32,27 @@ def segment_image(request):
     full_mask_path = os.path.join(default_storage.location, mask_path)
 
     try:
-        pil_mask_image, metrics = predict_single_image_unet(full_image_path, full_mask_path)
+        pil_unet, metrics_unet = predict_single_image_unet(
+            full_image_path, full_mask_path, model_key="unet"
+        )
+        pil_transunet, metrics_transunet = predict_single_image_transunet(
+            full_image_path, full_mask_path, model_key="transunet"
+        )
 
-        buffer = BytesIO()
-        pil_mask_image.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Encode image to base64
-        base64_img = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        def to_base64(pil_img):
+            buf = BytesIO()
+            pil_img.save(buf, format="PNG")
+            return base64.b64encode(buf.getvalue()).decode("utf-8")
 
         return Response({
-            "image": base64_img,
-            "metrics": metrics
+            "unet": {
+                "image": to_base64(pil_unet),
+                "metrics": metrics_unet
+            },
+            "transunet": {
+                "image": to_base64(pil_transunet),
+                "metrics": metrics_transunet
+            }
         })
 
     except Exception as e:

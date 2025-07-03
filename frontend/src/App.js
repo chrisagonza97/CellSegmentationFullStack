@@ -6,13 +6,12 @@ const sampleImages = ["0.png", "1.png", "2.png"];
 function App() {
   const [originalImage, setOriginalImage] = useState(null);
   const [groundTruthMask, setGroundTruthMask] = useState(null);
-  const [segmentedImage, setSegmentedImage] = useState(null);
-  const [metrics, setMetrics] = useState(null);
+  const [segResults, setSegResults] = useState(null); // Store both unet and transunet results
 
   const handleImageClick = async (filename) => {
     const imagePath = `/sample_imgs/cell_imgs/${filename}`;
     const visMaskPath = `/sample_imgs/seg_imgs_vis/${filename}`;
-    const rawMaskPath = `/sample_imgs/seg_imgs/${filename}`; // this is the one sent to backend
+    const rawMaskPath = `/sample_imgs/seg_imgs/${filename}`;
 
     setOriginalImage(imagePath);
     setGroundTruthMask(visMaskPath);
@@ -21,30 +20,33 @@ function App() {
       const imageBlob = await fetch(imagePath).then((res) => res.blob());
       const maskBlob = await fetch(rawMaskPath).then((res) => res.blob());
 
-      const imageFile = new File([imageBlob], filename, {
-        type: imageBlob.type,
-      });
+      const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
       const maskFile = new File([maskBlob], filename, { type: maskBlob.type });
 
       const formData = new FormData();
       formData.append("image", imageFile);
-      formData.append("mask", maskFile); // ground truth mask
+      formData.append("mask", maskFile);
 
-      const res = await axios.post(
-        "http://localhost:8000/api/segment/",
-        formData
-      );
+      const res = await axios.post("http://localhost:8000/api/segment/", formData);
+      setSegResults(res.data); // Expecting { unet: {image, metrics}, transunet: {image, metrics} }
 
-      // Base64 image returned
-      const base64Image = res.data.image;
-      const metrics = res.data.metrics;
-
-      setSegmentedImage(`data:image/png;base64,${base64Image}`);
-      setMetrics(metrics);
     } catch (error) {
       console.error("Error uploading image:", error);
     }
   };
+
+  const renderSegmentation = (title, data) => (
+    <div>
+      <h4>{title}</h4>
+      <img src={`data:image/png;base64,${data.image}`} alt={title} style={{ width: 300 }} />
+      <div style={{ marginTop: "1rem" }}>
+        <h5>AUROC: {data.metrics.auroc !== null ? data.metrics.auroc.toFixed(3) : "N/A"}</h5>
+        <pre style={{ fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
+          {JSON.stringify(data.metrics.classification_report, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -58,7 +60,7 @@ function App() {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: "2rem" }}>
+      <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
         {originalImage && (
           <div>
             <h4>Original</h4>
@@ -68,31 +70,15 @@ function App() {
         {groundTruthMask && (
           <div>
             <h4>Ground Truth</h4>
-            <img
-              src={groundTruthMask}
-              alt="Ground Truth"
-              style={{ width: 300 }}
-            />
+            <img src={groundTruthMask} alt="Ground Truth" style={{ width: 300 }} />
           </div>
         )}
-        {segmentedImage && (
-          <div>
-            <h4>U-net Predicted</h4>
-            <img src={segmentedImage} alt="Segmented" style={{ width: 300 }} />
-            {metrics && (
-              <div style={{ marginTop: "1rem" }}>
-                <h5>
-                  AUROC:{" "}
-                  {metrics.auroc !== null ? metrics.auroc.toFixed(3) : "N/A"}
-                </h5>
-                <pre style={{ fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(metrics.classification_report, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        )}
+        {segResults?.unet && renderSegmentation("U-Net Predicted", segResults.unet)}
+        {segResults?.transunet && renderSegmentation("TransUNet Predicted", segResults.transunet)}
       </div>
+      <p style={{ marginTop: "2rem" }}>
+        Comparing U-Net and TransUNet segmentations on sample images.
+      </p>
     </div>
   );
 }
