@@ -11,6 +11,18 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from django.core.management.utils import get_random_secret_key
+from dotenv import load_dotenv
+
+
+env_path = Path(".env")
+if not env_path.exists():
+    secret = get_random_secret_key()
+    with open(env_path, "w") as f:
+        f.write(f"SECRET_KEY={secret}\n")
+    print("Generated new .env file with SECRET_KEY")
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,8 +31,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-m3_b9j#!kkwwh8%-mf6f^%9ucz!le_kz$y7ewo8k_iv46_zp0w'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
