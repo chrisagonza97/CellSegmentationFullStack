@@ -105,6 +105,8 @@ These are automatically installed with `npm install`, but for reference:
 - [ ] Add authentication
 - [ ] Improve model selection interface
 - [ ] Deploy to cloud
+- [ ] add write up to explain problem and models.
+- [ ] Update UI from simple HTML.
 
 ---
 
