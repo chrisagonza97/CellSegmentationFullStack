@@ -11,6 +11,8 @@ from io import BytesIO
 import traceback
 import json
 import base64
+import tempfile
+import shutil
 
 @api_view(['GET'])
 def hello_world(request):
@@ -44,7 +46,7 @@ def segment_image(request):
             pil_img.save(buf, format="PNG")
             return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        return Response({
+        response = Response({
             "unet": {
                 "image": to_base64(pil_unet),
                 "metrics": metrics_unet
@@ -58,3 +60,16 @@ def segment_image(request):
     except Exception as e:
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+    
+    finally:
+        # Clean up the uploaded files
+        try:
+            if default_storage.exists(image_path):
+                default_storage.delete(image_path)
+            if default_storage.exists(mask_path):
+                default_storage.delete(mask_path)
+        except Exception as cleanup_error:
+            # Log cleanup errors but don't fail the request
+            print(f"Error during cleanup: {cleanup_error}")
+    
+    return response
